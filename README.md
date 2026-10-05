@@ -1,8 +1,8 @@
-# Magic Table
+# Modern Table
 
 A free-form, two-player Magic: The Gathering table that runs in the browser. Nothing is enforced; you play it like paper, and the table does the chores.
 
-**Play:** https://blaframboise.github.io/magic-table/
+**Play:** https://blaframboise.github.io/modern-table/
 
 One player opens a table and sends the six-letter code; the other joins with it. Card images and rules text come from Scryfall. Built-in decklists are recent Modern tournament results from MTGGoldfish, refreshed weekly.
 

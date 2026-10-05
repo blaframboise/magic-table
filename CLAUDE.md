@@ -1,4 +1,4 @@
-# Magic Table: instructions for Claude sessions working in this repo
+# Modern Table: instructions for Claude sessions working in this repo
 
 Owner: Ben (GitHub `blaframboise`). The game is served by GitHub Pages from `main` at the repo root, so whatever `index.html` is on `main` is what players get.
 
