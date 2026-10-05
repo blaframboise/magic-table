@@ -224,6 +224,7 @@ kbd.k{border:1px solid var(--line);border-radius:4px;padding:0 5px;font:12px var
       <button class="choice" id="resumeBtn" hidden><div><b>Return to your last table</b><span id="resumeTxt"></span></div><span>→</span></button>
     </div>
     <p id="lobbyMsg" style="color:var(--go)"></p>
+    <p><a href="#" id="fbLink" style="color:var(--brass)">Send feedback</a> <span style="color:var(--dim)">· report a bug or suggest a change</span></p>
   </div>
 </div>
 
@@ -281,7 +282,15 @@ kbd.k{border:1px solid var(--line);border-radius:4px;padding:0 5px;font:12px var
 <script>/*__PEERJS__*/</script>
 <script>
 "use strict";
-const VERSION = 'v1.13';
+const VERSION = 'v1.14';
+const FEEDBACK_FORM = 'https://docs.google.com/forms/d/e/1FAIpQLSf0cJmkNMBHo20umPjU7AZN9L3n4YF0OAdPcftA5Vgtpb0bzA/viewform', FB_VERSION = 'entry.424564323', FB_DETAILS = 'entry.2140001333';
+function feedbackUrl(){
+  let details = 'not in a game';
+  try{ if(typeof G!=='undefined' && (G.code || G.solo)){ const ua=navigator.userAgent, br=(ua.match(/(Edg|Chrome|Firefox|Safari)\/[\d]+/)||['browser'])[0];
+    details = [G.me.deck || 'no deck chosen', G.solo ? 'practice' : (G.myId==='p1' ? 'host' : 'guest') + (G.opp ? ' vs ' + (G.opp.deck || 'no deck') : ', no opponent yet'), G.turn.n ? 'turn ' + G.turn.n : 'before the game', br].join(' | '); } }catch(e){}
+  return FEEDBACK_FORM + '?usp=pp_url&' + FB_VERSION + '=' + encodeURIComponent(VERSION) + '&' + FB_DETAILS + '=' + encodeURIComponent(details.slice(0,300));
+}
+function openFeedback(){ const a=document.createElement('a'); a.href=feedbackUrl(); a.target='_blank'; a.rel='noopener'; document.body.appendChild(a); a.click(); a.remove(); }
 const BUILTIN = /*__DECKS__*/[];
 let DECKS = BUILTIN, PACK = null;
 const BACK_IMG = 'https://backs.scryfall.io/large/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg', BACK = `<div class="back"><img src="${BACK_IMG}" alt="" draggable="false" onerror="this.remove()"></div>`;
@@ -825,7 +834,7 @@ function tableMenu(x,y){
     ['Concede this game',()=>concede()],
     ['Change deck',()=>showDecks()], ['Take the turn',()=>{ setTurn({active:G.myId, phase:2, n:Math.max(1,G.turn.n)}); }],
     [S.autoDraw?'Turn off auto-draw each turn':'Turn on auto-draw each turn',()=>{ S.autoDraw=!S.autoDraw; store.set('mt_settings',S); toast('Auto-draw is '+(S.autoDraw?'on':'off')); }],
-    ['Clear my arrows',()=>{ G.me.arrows=[]; changed(); }], ['Shortcuts and help',()=>helpModal()], '-',
+    ['Clear my arrows',()=>{ G.me.arrows=[]; changed(); }], ['Shortcuts and help',()=>helpModal()], ['Send feedback',()=>openFeedback()], '-',
     ['Leave the table',()=>confirmBox('Leave this table?','Your seat is kept on this computer, so you can come back from the front page.',()=>{ save(); location.href=location.pathname+location.search; })] ]);
 }
 function confirmBox(title, text, yes){ modal(title, `<span class="hint">${esc(text)}</span>`, [['Cancel',()=>closeModal(),'ghost'],['Yes',()=>{ closeModal(); yes(); },'go']]); }
@@ -1096,7 +1105,7 @@ function paintTour(){
 }
 
 /* ================= lobby ================= */
-const nameIn=$('#nameIn'); nameIn.value=S.name; $('#verTag').textContent=VERSION;
+const nameIn=$('#nameIn'); nameIn.value=S.name; $('#verTag').textContent=VERSION; $('#fbLink').onclick=e=>{ e.preventDefault(); openFeedback(); };
 function begin(role, code){
   S.name=(nameIn.value.trim()||'Player').slice(0,20); store.set('mt_settings',S);
   G.solo = role==='solo'; G.myId = role==='guest' ? 'p2' : 'p1'; G.code=code||''; G.me=newPlayer(); G.opp=null; G.turn={active:null,phase:2,n:0}; G.idc=0;

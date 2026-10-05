@@ -35,5 +35,8 @@ Goal: replace `src/decks.txt` with top finishers from Modern events of the last 
 8. Commit `src/decks.txt` and `index.html` with message `Weekly deck refresh YYYY-MM-DD (N decks)` and push to `main`. If the push is refused, do not try other routes; report it.
 Colour-code archetype names from MTGGoldfish (WU, UR, WBG) may be replaced with a plain name only when the list makes it obvious.
 
+## Feedback
+The game links to a Google Form ("Send feedback" on the front page and in the table menu), pre-filling the version and game details. Responses go to a Google Sheet in Ben's Drive, which Ben reviews before asking for changes. The form URL and field ids are constants near the top of `src/app.src.html` (`FEEDBACK_FORM`, `FB_VERSION`, `FB_DETAILS`).
+
 ## Testing
 The page needs Scryfall and a PeerJS broker at runtime, which the cloud sandbox cannot reach. For a smoke test, load `index.html` in the pre-installed Chromium with Playwright, mock `api.scryfall.com/cards/collection`, and check the deck screen lists the decks and a solo game starts.
