@@ -290,7 +290,7 @@ kbd.k{border:1px solid var(--line);border-radius:4px;padding:0 5px;font:12px var
 <script>/*__PEERJS__*/</script>
 <script>
 "use strict";
-const VERSION = 'v1.21';
+const VERSION = 'v1.22';
 const FEEDBACK_FORM = 'https://docs.google.com/forms/d/e/1FAIpQLSf0cJmkNMBHo20umPjU7AZN9L3n4YF0OAdPcftA5Vgtpb0bzA/viewform', FB_VERSION = 'entry.424564323', FB_DETAILS = 'entry.2140001333';
 function feedbackUrl(){
   let details = 'not in a game';
@@ -487,8 +487,8 @@ function move(id, zone, o={}){
   if(from===zone && zone!=='lib') return;
   m[from].splice(f.i,1); if(from==='ex') delete c.offer;
   if(from==='bf' || from==='st'){ for(const x of m.bf) if(x.att===id) x.att=null; m.arrows = m.arrows.filter(a=>a.a!==id && a.b!==id); }
-  if(zone!=='bf'){ c.tap=false; c.c=0; c.att=null; c.atk=false; c.flip=false; c.note=''; c.row=null; c.anim=false; if(zone!=='ex' && zone!=='st') c.fd=false; }
-  if(zone==='bf' && from!=='bf'){ c.fd=!!o.fd; c.tap=!!o.tap; const d=cdata(c); if(!c.fd && d.loy && !isNaN(+d.loy)) c.c=+d.loy; }
+  if(zone!=='bf'){ c.tap=false; c.c=0; c.att=null; c.atk=false; c.flip=false; c.note=''; c.row=null; c.anim=false; c.fdk=null; if(zone!=='ex' && zone!=='st') c.fd=false; }
+  if(zone==='bf' && from!=='bf'){ c.fd=!!o.fd; c.fdk=o.fd&&o.fdk?o.fdk:null; c.tap=!!o.tap; const d=cdata(c); if(!c.fd && d.loy && !isNaN(+d.loy)) c.c=+d.loy; }
   if(zone==='st') c.ts=Date.now();
   const leavesPlay = !['bf','st'].includes(zone);
   if(c.tok && leavesPlay){ if(!o.silent) log(`${m.name}'s token ${cname(c)} leaves play.`); return; }
@@ -528,6 +528,12 @@ function turnCleanup(prev, next){
 }
 const canAnimate = c => isLand(c) && !isCreature(c) && /becomes? an? [^.]*creature/i.test(cdata(c).o||'');
 function animateLand(id){ const f=find(id); if(!f||f.z!=='bf') return; const c=f.c; c.anim=!c.anim; c.row=c.anim?'f':null; if(!c.anim) c.atk=false; log(c.anim ? `${G.me.name}'s ${cname(c)} becomes a creature until end of turn.` : `${G.me.name}'s ${cname(c)} is a land again.`); changed(); }
+function faceToggle(id){
+  const f=find(id); if(!f||f.z!=='bf') return; const c=f.c, was=c.fdk; c.fd=!c.fd;
+  if(c.fd) log(`${G.me.name} turns a permanent face down.`);
+  else { c.fdk=null; c.row=null; const d=cdata(c); if(d.loy && !isNaN(+d.loy) && !c.c) c.c=+d.loy; log(`${G.me.name} turns ${was?'the '+was.toLowerCase()+' ':''}face up: ${cname(c)}.`); }
+  changed();
+}
 function attack(id, vig){
   const f=find(id); if(!f || f.z!=='bf') return; const c=f.c;
   if(c.atk){ c.atk=false; changed(); return; }
@@ -632,7 +638,7 @@ function cardHTML(c, z, mine, cls=''){
   else{ const img = (c.flip && d.back) ? d.back : d.img;
     inner = `<div class="txt"><b>${esc(d.n)}</b><i>${esc(d.t||'')}</i><span>${esc(d.pt||'')}</span></div>` + (img ? `<img src="${esc(img)}" alt="${esc(d.n)}" draggable="false" loading="lazy" onerror="this.remove()">` : ''); }
   const pw = z==='bf' && !backUp && isPW(c), cr = !pw && isCreature(c);
-  const b = (pw ? `<span class="loy"><b>${c.c||0}</b></span>` : c.c ? `<span class="badge ctr ${c.c<0?'neg':''}">${cr ? (c.c>0?'+':'−')+Math.abs(c.c) : c.c}</span>` : '') + (c.anim ? '<span class="badge tok" style="border-color:var(--brass);color:var(--brass)">creature</span>' : c.tok ? '<span class="badge tok">token</span>' : c.made ? '<span class="badge tok">created</span>' : '') + (c.note ? `<span class="badge note">${esc(c.note)}</span>` : '')
+  const b = (pw ? `<span class="loy"><b>${c.c||0}</b></span>` : c.c ? `<span class="badge ctr ${c.c<0?'neg':''}">${cr ? (c.c>0?'+':'−')+Math.abs(c.c) : c.c}</span>` : '') + (c.anim ? '<span class="badge tok" style="border-color:var(--brass);color:var(--brass)">creature</span>' : c.tok ? '<span class="badge tok">token</span>' : c.made ? '<span class="badge tok">created</span>' : '') + (c.fd && c.fdk && z==='bf' ? `<span class="badge note" style="border-color:var(--brass);color:var(--brass);right:4%">${esc(c.fdk)} · 2/2</span>` : c.note ? `<span class="badge note">${esc(c.note)}</span>` : '')
     + (z==='bf' && c.o && c.o !== (mine?G.myId:oppId()) ? '<span class="badge ctl">borrowed</span>' : '');
   return `<div class="card ${mine?'':'opp'} ${c.tap?'tap':''} ${c.atk?'atk':''} ${c.fd&&mine?'fdmine':''} ${cls}" data-id="${c.id}" data-z="${z}" data-o="${mine?'me':'opp'}">${inner}${b}</div>`;
 }
@@ -811,13 +817,14 @@ function cardMenu(id, x, y){
     ['Set counters…',async()=>{ const n=await askN('Set counters', c.c||0); if(n!=null){ c.c=Math.max(minCounters(c),n); ch(); } }],
     ['Note…',async()=>{ const v=await ask('Note on this card', c.note||'', 'Short note, e.g. +2/+2 until end of turn'); if(v!=null){ c.note=v.slice(0,40); ch(); } }], '-',
     d.back&&[c.flip?'Turn to front face':'Transform',()=>{ c.flip=!c.flip; log(`${G.me.name} transforms ${cname(c)}.`); ch(); },'F'],
-    [c.fd?'Turn face up':'Turn face down',()=>{ c.fd=!c.fd; log(c.fd?`${G.me.name} turns a permanent face down.`:`${G.me.name} turns ${cname(c)} face up.`); ch(); }],
+    [c.fd?(c.fdk?`Turn face up (reveal the ${c.fdk.toLowerCase()})`:'Turn face up'):'Turn face down',()=>faceToggle(id), c.fd&&c.fdk?'F':''],
     ['Attach to…',()=>startMode('attach',id)], c.att&&['Detach',()=>{ c.att=null; ch(); }],
     ['Move to the other row',()=>{ const cur=c.row||((c.fd||isCreature(c))?'f':'b'); c.row=cur==='f'?'b':'f'; ch(); }],
     ['Make a token copy',()=>{ G.me.bf.push(mk(c.k,{tok:true,cu:c.cu,c:0})); log(`${G.me.name} makes a token copy of ${cname(c)}.`); ch(); }],
     G.opp&&['Give control to opponent',()=>{ G.noUndo=true; G.me.bf.splice(find(id).i,1); c.att=null; c.atk=false; send({t:'give',card:c,zone:'bf'}); log(`${G.me.name} gives control of ${cname(c)} to ${G.opp.name}.`); ch(); }], '-', ...dest ];
   else if(z==='hand') items=[
-    [isLand(c)?'Play land':'Cast (goes to the stack)',()=>playFromHand(id)], [isLand(c)?'Play land tapped':'Put onto the battlefield tapped',go('bf',{tap:true}),isLand(c)?'Shift-click':''], !isLand(c)&&['Put straight onto the battlefield',go('bf')], ['Play face down',go('bf',{fd:true})],
+    [isLand(c)?'Play land':'Cast (goes to the stack)',()=>playFromHand(id)],
+    ['Morph (face down 2/2)',()=>{ move(id,'bf',{fd:true,fdk:'Morph',silent:true}); log(`${G.me.name} casts a card face down as a 2/2 creature (morph).`); ch(); }], [isLand(c)?'Play land tapped':'Put onto the battlefield tapped',go('bf',{tap:true}),isLand(c)?'Shift-click':''], !isLand(c)&&['Put straight onto the battlefield',go('bf')], ['Play face down',go('bf',{fd:true})],
     ['Reveal to opponent',()=>log(`${G.me.name} reveals ${cname(c)} from hand.`)], ['Discard',go('gy'),'G'], '-', ...dest.filter(i=>i&&i[0]!=='To graveyard'&&i[0]!=='To battlefield') ];
   else if(z==='st') items=[
     ['Resolve',()=>resolve(id)], ['Countered: to graveyard',()=>{ log(`${cname(c)} is countered.`); move(id,'gy',{silent:true}); ch(); }],
@@ -835,6 +842,7 @@ function pileMenu(z, x, y){
     G.opp&&['Show the top card to opponent only',()=>{ const c=m.lib[0]; if(!c) return; send({t:'show', k:c.k, cu:c.cu||null, what:'the top card of their library'}); log(`${m.name} shows the top card of their library to ${G.opp.name} without looking at it.`); toast(`${G.opp.name} is looking at your top card.`); }],
     ['Mill…',async()=>{ const n=await askN('Mill cards',1); for(let i=0;i<(n||0)&&m.lib.length;i++) move(m.lib[0].id,'gy',{silent:true}); if(n>0){ log(`${m.name} mills ${n}.`); ch(); } }],
     G.opp&&['Exile top card for opponent to cast (Ragavan)',()=>{ const c=m.lib[0]; if(!c) return; move(c.id,'ex',{silent:true}); c.offer=true; log(`${m.name} exiles the top card of their library: ${cname(c)}. ${G.opp.name} may cast it this turn.`); ch(); }],
+    ['Manifest the top card (face down 2/2)',()=>{ const c=m.lib[0]; if(!c) return; move(c.id,'bf',{fd:true,fdk:'Manifest',silent:true}); log(`${m.name} manifests the top card of their library.`); ch(); }],
     ['Exile the top card face down',()=>{ if(m.lib[0]){ const c=m.lib[0]; move(c.id,'ex',{silent:true}); c.fd=true; log(`${m.name} exiles the top card of their library face down.`); ch(); } }],
     '-', ['Shuffle',()=>{ shuffleLib(); ch(); },'S'] ]);
 }
@@ -871,7 +879,7 @@ function confirmBox(title, text, yes){ modal(title, `<span class="hint">${esc(te
 function helpModal(){
   const k=(a,b)=>`<div><kbd class="k">${a}</kbd> ${b}</div>`;
   modal('How this table works', `<span class="hint">Nothing is enforced. Click does the usual thing, right-click shows everything else, and you can drag cards between your zones.</span>
-  <div class="two"><div><h4>Mouse</h4><div>Click a card in hand: lands enter play, spells go to the stack.</div><div>Shift-click a land in hand to play it tapped.</div><div>Click a spell on the stack to resolve it.</div><div>Click a permanent to tap or untap it.</div><div>Click your library to draw. Right-click it to scry, search, mill or shuffle.</div><div>Click a graveyard or exile pile to look through it.</div><div>Before each game: High roll, then the winner clicks I'll go first and it becomes their turn 1. Each player draws an opening hand, mulligans if they want, then keeps.</div><div>Lands that can become creatures: right-click and choose Become a creature. The land moves to the creature row and goes back when the turn ends.</div><div>After you keep, the table offers pregame actions for cards that mention your opening hand, such as Leylines.</div><div>Counters: C adds one and X removes one. On a creature, removing below zero gives −1 counters, shown in red. Planeswalkers show loyalty in a shield at the bottom right.</div><div>Mana creatures: right-click one for Tap for Green and the like; a plain click just taps it.</div><div>Mana pool: tapping a land adds its mana, and asks which colour when there is a choice. Click a lit symbol to spend one. Shift-click or right-click a symbol to add one by hand. The pool empties when the phase changes.</div><div>Right-click your graveyard to exile all of it. Right-click your library to show the top card to your opponent only.</div><div>Ending your turn passes it. Your opponent can still act (crack a fetch land, cast at end of turn) and clicks Start my turn when ready.</div><div>Ragavan and similar: the defending player right-clicks their library and picks Exile top card for opponent to cast. Both players see the card; the attacker gets a Cast this card button. If cast, it goes back to its owner's graveyard or exile when it leaves play. If not, it stays in the owner's exile.</div><div>Attackers get a gold border that clears when combat ends.</div><div>Life: use − and + beside either player. Shift-click changes by 5.</div><div>Undo steps back your own last action and says so in the log. It cannot go back past a shuffle, the end of a turn, or anything your opponent did to you.</div><div>Match score: click the circle under a player's life when they win a game. Right-click takes it back.</div></div>
+  <div class="two"><div><h4>Mouse</h4><div>Click a card in hand: lands enter play, spells go to the stack.</div><div>Shift-click a land in hand to play it tapped.</div><div>Click a spell on the stack to resolve it.</div><div>Click a permanent to tap or untap it.</div><div>Click your library to draw. Right-click it to scry, search, mill or shuffle.</div><div>Click a graveyard or exile pile to look through it.</div><div>Before each game: High roll, then the winner clicks I'll go first and it becomes their turn 1. Each player draws an opening hand, mulligans if they want, then keeps.</div><div>Lands that can become creatures: right-click and choose Become a creature. The land moves to the creature row and goes back when the turn ends.</div><div>After you keep, the table offers pregame actions for cards that mention your opening hand, such as Leylines.</div><div>Morph: right-click a card in hand. Manifest: right-click your library. Either puts the card face down in the creature row marked as a 2/2. Right-click it, or press F over it, to turn it face up.</div><div>Counters: C adds one and X removes one. On a creature, removing below zero gives −1 counters, shown in red. Planeswalkers show loyalty in a shield at the bottom right.</div><div>Mana creatures: right-click one for Tap for Green and the like; a plain click just taps it.</div><div>Mana pool: tapping a land adds its mana, and asks which colour when there is a choice. Click a lit symbol to spend one. Shift-click or right-click a symbol to add one by hand. The pool empties when the phase changes.</div><div>Right-click your graveyard to exile all of it. Right-click your library to show the top card to your opponent only.</div><div>Ending your turn passes it. Your opponent can still act (crack a fetch land, cast at end of turn) and clicks Start my turn when ready.</div><div>Ragavan and similar: the defending player right-clicks their library and picks Exile top card for opponent to cast. Both players see the card; the attacker gets a Cast this card button. If cast, it goes back to its owner's graveyard or exile when it leaves play. If not, it stays in the owner's exile.</div><div>Attackers get a gold border that clears when combat ends.</div><div>Life: use − and + beside either player. Shift-click changes by 5.</div><div>Undo steps back your own last action and says so in the log. It cannot go back past a shuffle, the end of a turn, or anything your opponent did to you.</div><div>Match score: click the circle under a player's life when they win a game. Right-click takes it back.</div></div>
   <div><h4>Keys, with the pointer over your card</h4>${k('T','tap or untap')}${k('A','attack: taps and gets a gold border')}${k('V','attack with vigilance: gold border, stays untapped')}${k('B','block: then click the attacker')}${k('R','target: then click a card or player')}${k('C','add a counter')}${k('X','remove a counter')}${k('F','transform')}${k('G','graveyard')}${k('E','exile')}${k('H','hand')}<h4 style="margin-top:10px">Anywhere</h4>${k('D','draw a card')}${k('S','shuffle')}${k('Ctrl+Z','undo your last action')}${k('Space','next phase')}${k('Esc','cancel')}</div></div>`, [['Got it',()=>closeModal(),'go']]);
 }
 function sideboardModal(){
@@ -984,6 +992,7 @@ document.addEventListener('keydown', e=>{
   else if(f.z==='bf'){
     if(k==='t') toggleTap(id); else if(k==='c') addCounter(id,1); else if(k==='x') addCounter(id,-1);
     else if(k==='a') attack(id,false); else if(k==='v') attack(id,true);
+    else if(k==='f' && c.fd && c.fdk) faceToggle(id);
     else if(k==='f' && cdata(c).back){ c.flip=!c.flip; changed(); }
     else if(k==='r') startMode('arrow',id); else if(k==='b') startMode('block',id);
   } else if(f.z==='st' && k==='r') startMode('arrow',id);
