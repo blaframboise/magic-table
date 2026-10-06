@@ -298,7 +298,7 @@ kbd.k{border:1px solid var(--line);border-radius:4px;padding:0 5px;font:12px var
 </script>
 <script>
 "use strict";
-const VERSION = 'v1.22';
+const VERSION = 'v1.23';
 const FEEDBACK_FORM = 'https://docs.google.com/forms/d/e/1FAIpQLSf0cJmkNMBHo20umPjU7AZN9L3n4YF0OAdPcftA5Vgtpb0bzA/viewform', FB_VERSION = 'entry.424564323', FB_DETAILS = 'entry.2140001333';
 function feedbackUrl(){
   let details = 'not in a game';
@@ -405,7 +405,7 @@ const cname = c => c.fd ? 'a face-down card' : '[['+(cdata(c).n||'a card')+'|'+(
 function pub(){
   const m=G.me, p = c => c.fd ? Object.assign({}, c, {k:null, cu:null, note:''}) : c;
   return { name:m.name, deck:m.deck, life:m.life, ctr:m.ctr, libN:m.lib.length, handN:m.hand.length, sideN:m.side.length,
-    hand:m.reveal ? m.hand : null, bf:m.bf.map(p), gy:m.gy, ex:m.ex.map(p), st:m.st.map(p), arrows:m.arrows, mull:m.mull, wins:m.wins||0, roll:m.roll||null, dealt:!!m.dealt, kept:!!m.kept, mana:m.mana||noMana(), energySeen:!!m.energySeen };
+    hand:(m.reveal || m.ctl) ? m.hand : null, ctl:!!m.ctl, ctlNext:!!m.ctlNext, bf:m.bf.map(p), gy:m.gy, ex:m.ex.map(p), st:m.st.map(p), arrows:m.arrows, mull:m.mull, wins:m.wins||0, roll:m.roll||null, dealt:!!m.dealt, kept:!!m.kept, mana:m.mana||noMana(), energySeen:!!m.energySeen };
 }
 /* undo: a snapshot of my own side is kept before each change. Shuffles and anything that crosses to the other player close the history. */
 const UNDO=[]; let lastSnap=null, lastLogi=0;
@@ -472,6 +472,7 @@ function onMsg(m){
   else if(m.t==='log'){ addLog(String(m.text).slice(0,400), 'o'); const ks=[...String(m.text).matchAll(/\[\[[^|\]]*\|([^\]]*)\]\]/g)].map(x=>x[1]).filter(Boolean); if(ks.length) ensureCards(ks); }
   else if(m.t==='take'){ const f=find(m.id); if(f && f.z==='ex' && f.c.offer){ G.noUndo=true; const c=f.c; G.me.ex.splice(f.i,1); delete c.offer; c.fd=false; send({t:'give', card:c, zone:'st'}); log(`${G.opp?G.opp.name:'Opponent'} casts ${cname(c)} from ${G.me.name}'s exile.`); changed(); } }
   else if(m.t==='give'){ G.noUndo=true; const gc=m.card, play=m.zone==='bf'||m.zone==='st'; if((gc.tok && !play) || (gc.made && !play && m.zone!=='hand')){ render(); return; } if(m.zone==='st') gc.ts=Date.now(); place(m.card, m.zone, m.pos); if(m.card.k) ensureCards([m.card.k]).then(render); changed(); }
+  else if(m.t==='cmd'){ runCmd(m); }
   else if(m.t==='show'){ const c={id:'s:'+(m.k||''), k:m.k, cu:m.cu}; ensureCards(m.k?[m.k]:[]).then(()=>showCard(c, `${G.opp?G.opp.name:'Your opponent'} shows you ${m.what}`)); }
   else if(m.t==='adj'){ G.noUndo=true; if(m.win){ applyWin(m.win); if(m.concede && (G.me.wins||0)<2) nextGamePrompt(`${G.opp?G.opp.name:'Your opponent'} conceded the game`); return; } if(m.life){ G.me.life += m.life; } if(m.ctr){ G.me.ctr[m.ctr] = Math.max(0,(G.me.ctr[m.ctr]||0)+m.d); } changed(); }
   else if(m.t==='newmatch'){ G.noUndo=true; G.me.wins=0; changed(); }
@@ -542,6 +543,52 @@ function faceToggle(id){
   else { c.fdk=null; c.row=null; const d=cdata(c); if(d.loy && !isNaN(+d.loy) && !c.c) c.c=+d.loy; log(`${G.me.name} turns ${was?'the '+was.toLowerCase()+' ':''}face up: ${cname(c)}.`); }
   changed();
 }
+/* control of a turn (Emrakul, the Promised End): the controlled player's client carries out commands the controller sends */
+const iControl = () => !!(G.opp && G.opp.ctl && G.turn.n && G.turn.active===oppId() && !G.turn.passed);
+function giveControl(){
+  const m=G.me, mine=G.turn.n && G.turn.active===G.myId && !G.turn.passed;
+  if(m.ctl || m.ctlNext){ m.ctl=false; m.ctlNext=false; log(`${m.name} takes back control of their turn.`); changed(); return; }
+  if(mine){ m.ctl=true; log(`${G.opp.name} controls ${m.name} during this turn. ${m.name} will take an extra turn afterwards.`); } else { m.ctlNext=true; log(`${G.opp.name} will control ${m.name}'s next turn.`); }
+  changed();
+}
+function runCmd(c){
+  const m=G.me; if(!m.ctl) return; G.noUndo=true; const f=c.id && find(c.id), who=G.opp?G.opp.name:'Opponent';
+  switch(c.op){
+    case 'next': nextPhase(); return;
+    case 'draw': draw(1); break;
+    case 'play': if(f && f.z==='hand') playFromHand(c.id); return;
+    case 'resolve': if(f && f.z==='st') resolve(c.id); return;
+    case 'tap': if(f && f.z==='bf'){ f.c.tap=!f.c.tap; if(f.c.tap && c.mana) addMana(String(c.mana).replace(/[^WUBRGC]/g,'').slice(0,6)); } break;
+    case 'atk': if(f) attack(c.id, !!c.vig); return;
+    case 'ctr': if(f) addCounter(c.id, c.d>0?1:-1); return;
+    case 'face': if(f && f.z==='bf') faceToggle(c.id); return;
+    case 'move': if(f && ['hand','bf','gy','ex','st','lib'].includes(c.zone)){ move(c.id, c.zone, {pos:c.pos==='bottom'?'bottom':'top', tap:!!c.tap}); } break;
+    case 'mana': if(MANA.includes(c.k)){ if(!m.mana) m.mana=noMana(); m.mana[c.k]=Math.max(0, m.mana[c.k]+(c.d>0?1:-1)); } break;
+    case 'shuffle': shuffleLib(); break;
+    default: return;
+  }
+  changed();
+}
+const cmd = (op, id, extra) => send(Object.assign({t:'cmd', op, id}, extra||{}));
+function remoteClick(id, z, x, y){
+  const f=findAny(id); if(!f || f.mine) return; const c=f.c;
+  if(z==='hand') cmd('play', id); else if(z==='st') cmd('resolve', id);
+  else if(z==='bf'){
+    const opts = (!c.tap && c.k && (isLand(c) || (!isCreature(c) && /\{T\}[^:\n]*: add/i.test(cdata(c).o||'')))) ? manaOptions(c) : [];
+    if(opts.length>1) menu(x, y, [...opts.map(o=>['Tap for '+manaLabel(o), ()=>cmd('tap', id, {mana:o})]), '-', ['Tap without adding mana', ()=>cmd('tap', id)]]);
+    else cmd('tap', id, opts.length ? {mana:opts[0]} : null);
+  }
+}
+function remoteMenu(id, x, y){
+  const f=findAny(id); if(!f || f.mine) return; const c=f.c, z=f.z, mv=(zone,extra)=>()=>cmd('move', id, Object.assign({zone}, extra||{}));
+  const dest=[ z!=='hand'&&['To hand',mv('hand')], z!=='bf'&&['To battlefield',mv('bf')], z!=='gy'&&['To graveyard',mv('gy')], z!=='ex'&&['To exile',mv('ex')], ['Top of library',mv('lib',{pos:'top'})], ['Bottom of library',mv('lib',{pos:'bottom'})] ];
+  let items=[];
+  if(z==='bf') items=[ [c.tap?'Untap':'Tap',()=>cmd('tap',id)], [c.atk?'Remove from combat':'Attack (taps)',()=>cmd('atk',id)], !c.atk&&['Attack with vigilance',()=>cmd('atk',id,{vig:1})], ['Add a counter (+1)',()=>cmd('ctr',id,{d:1})], ['Remove a counter (−1)',()=>cmd('ctr',id,{d:-1})], c.fd&&['Turn face up',()=>cmd('face',id)], '-', ...dest ];
+  else if(z==='hand') items=[ ['Play or cast',()=>cmd('play',id)], ['Put onto the battlefield',mv('bf')], ['Play tapped',mv('bf',{tap:1})], ['Discard',mv('gy')], '-', ...dest.filter(i=>i&&i[0]!=='To graveyard'&&i[0]!=='To battlefield') ];
+  else if(z==='st') items=[ ['Resolve',()=>cmd('resolve',id)], '-', ...dest ];
+  else items=[ ['Cast from here (to the stack)',mv('st')], ...dest ];
+  menu(x, y, items);
+}
 function attack(id, vig){
   const f=find(id); if(!f || f.z!=='bf') return; const c=f.c;
   if(c.atk){ c.atk=false; changed(); return; }
@@ -574,6 +621,7 @@ function setLife(d){ G.me.life+=d; clearTimeout(setLife.t); setLife.acc=(setLife
 function setTurn(t, fresh){ const prev=G.turn; G.turn=t; send({t:'turn', turn:t, fresh:!!fresh}); if(turnCleanup(prev, t)) changed(); else { render(); save(); } }
 function startMyTurn(){
   const m=G.me; m.bf.forEach(c=>{ c.tap=false; c.atk=false; }); m.arrows=[];
+  if(m.ctlNext && G.opp){ m.ctlNext=false; m.ctl=true; const cm=`${G.opp.name} controls ${m.name} during this turn.`; addLog(cm,'s'); send({t:'log', text:cm}); } else m.ctlNext=false;
   const msg = `Turn ${G.turn.n}: ${m.name} untaps.`; addLog(msg,'s'); send({t:'log', text:msg});
   G.noUndo=true; checkpoint();
   emptyPool(); for(const c of m.ex) delete c.offer; for(const c of m.bf) if(c.anim){ c.anim=false; c.row=null; }
@@ -583,10 +631,12 @@ function startMyTurn(){
 }
 function nextPhase(){
   const t=G.turn; if(!t.n){ return; }
+  if(iControl()){ send({t:'cmd', op:'next'}); return; }
   if(t.passed && t.active!==G.myId){ G.turn={active:G.myId, phase:0, n:t.n+1}; startMyTurn(); return; }
   if(t.active!==G.myId || t.passed) return;
   if(t.phase < PH.length-1){ const p=t.phase+1; if(p===3) log(`${G.me.name} moves to combat.`); setTurn({...t, phase:p}); return; }
   G.me.bf.forEach(c=>c.atk=false); G.me.arrows=[]; G.noUndo=true;
+  if(G.me.ctl){ G.me.ctl=false; log(`The controlled turn ends. ${G.me.name} takes an extra turn under their own control.`); G.turn={active:G.myId, phase:0, n:t.n+1}; startMyTurn(); return; }
   if(G.solo || !G.opp){ log(`${G.me.name} ends the turn.`); G.turn={active:G.myId, phase:0, n:t.n+1}; startMyTurn(); }
   else { log(`${G.me.name} passes the turn. ${G.opp.name} starts their turn when ready.`); setTurn({...t, passed:true}); changed(); }
 }
@@ -602,7 +652,7 @@ function newMatch(){ G.me.wins=0; send({t:'newmatch'}); log(`${G.me.name} starte
 function gather(){
   const m=G.me; G.noUndo=true;
   for(const z of ['hand','bf','gy','ex','st']){ for(const c of m[z].splice(0)){ if(c.tok || c.made) continue; if(c.o!==G.myId){ send({t:'give', card:Object.assign(c,{tap:false,c:0,att:null,atk:false,fd:false,flip:false}), zone:'lib'}); continue; } Object.assign(c,{tap:false,c:0,att:null,atk:false,fd:false,flip:false,note:'',row:null}); m.lib.push(c); } }
-  m.life=20; m.ctr={poison:0,energy:0}; m.arrows=[]; m.reveal=false; m.mull=0; m.roll=null; m.dealt=false; m.kept=false; m.mana=noMana(); m.energySeen=false; m.drew=0;
+  m.life=20; m.ctr={poison:0,energy:0}; m.arrows=[]; m.reveal=false; m.mull=0; m.roll=null; m.dealt=false; m.kept=false; m.mana=noMana(); m.energySeen=false; m.drew=0; m.ctl=false; m.ctlNext=false;
 }
 function newGame(remote){
   gather(); G.turn={active:null, phase:2, n:0};
@@ -714,6 +764,7 @@ function render(){
   const nb=$('#next');
   if(!t.n){ nb.textContent='Waiting to start'; nb.disabled=true; }
   else if(t.passed){ nb.disabled=mine; nb.textContent = mine ? `Waiting for ${o&&o.name||'opponent'}` : 'Start my turn'; }
+  else if(iControl()){ nb.disabled=false; nb.textContent = (t.phase<PH.length-1 ? 'Next: '+PH[t.phase+1] : 'End their turn'); }
   else if(!mine){ nb.textContent="Opponent's turn"; nb.disabled=true; }
   else { nb.disabled=false; nb.textContent = t.phase<PH.length-1 ? 'Next: '+PH[t.phase+1] : 'End turn'; }
   // pre-game banner
@@ -730,6 +781,7 @@ function render(){
   }
   else bn.hidden=true;
   $('#modebar').hidden = !G.mode; if(G.mode) $('#modebar').textContent = (G.mode.type==='attach' ? 'Click the permanent to attach to' : G.mode.type==='block' ? 'Click the attacker to block' : 'Click a target: a card or a player') + ' · Esc cancels';
+  if(!G.mode){ const ic=iControl(), ctlMe=m.ctl && G.turn.active===G.myId; if(ic || ctlMe || m.ctlNext || (o&&o.ctlNext)){ $('#modebar').hidden=false; $('#modebar').textContent = ic ? `You control ${o.name}'s turn: click and right-click their cards, and use the Next button` : ctlMe ? `${o?o.name:'Opponent'} controls this turn. You take an extra turn afterwards` : m.ctlNext ? `${o?o.name:'Opponent'} will control your next turn` : `You will control ${o.name}'s next turn`; } }
   const hd=$('#myHand'), n=m.hand.length, fc=hd.firstElementChild;
   if(fc && n>1){ const w=fc.offsetWidth, step=Math.min(w*.86, (hd.clientWidth-24-w)/(n-1)); hd.style.setProperty('--hm', (-(w-step)/2)+'px'); }
   $('#undoBtn').disabled = !UNDO.length; $('#undoBtn').style.opacity = UNDO.length ? 1 : .45;
@@ -877,6 +929,7 @@ function gyMenu(x,y){
 function tableMenu(x,y){
   menu(x,y,[
     ['New game / sideboard',()=>confirmBox('Start a new game?','Both players go back to 20 life and reshuffle. You can sideboard first.',()=>newGame())],
+    G.opp&&[(G.me.ctl||G.me.ctlNext)?'Take back control of my turn':(G.turn.n&&G.turn.active===G.myId&&!G.turn.passed?'Give opponent control of this turn (Emrakul)':'Give opponent control of my next turn (Emrakul)'),()=>giveControl()],
     ['Concede this game',()=>concede()],
     ['Change deck',()=>showDecks()], ['Take the turn',()=>{ setTurn({active:G.myId, phase:2, n:Math.max(1,G.turn.n)}); }],
     [S.autoDraw?'Turn off auto-draw each turn':'Turn on auto-draw each turn',()=>{ S.autoDraw=!S.autoDraw; store.set('mt_settings',S); toast('Auto-draw is '+(S.autoDraw?'on':'off')); }],
@@ -887,7 +940,7 @@ function confirmBox(title, text, yes){ modal(title, `<span class="hint">${esc(te
 function helpModal(){
   const k=(a,b)=>`<div><kbd class="k">${a}</kbd> ${b}</div>`;
   modal('How this table works', `<span class="hint">Nothing is enforced. Click does the usual thing, right-click shows everything else, and you can drag cards between your zones.</span>
-  <div class="two"><div><h4>Mouse</h4><div>Click a card in hand: lands enter play, spells go to the stack.</div><div>Shift-click a land in hand to play it tapped.</div><div>Click a spell on the stack to resolve it.</div><div>Click a permanent to tap or untap it.</div><div>Click your library to draw. Right-click it to scry, search, mill or shuffle.</div><div>Click a graveyard or exile pile to look through it.</div><div>Before each game: High roll, then the winner clicks I'll go first and it becomes their turn 1. Each player draws an opening hand, mulligans if they want, then keeps.</div><div>Lands that can become creatures: right-click and choose Become a creature. The land moves to the creature row and goes back when the turn ends.</div><div>After you keep, the table offers pregame actions for cards that mention your opening hand, such as Leylines.</div><div>Morph: right-click a card in hand. Manifest: right-click your library. Either puts the card face down in the creature row marked as a 2/2. Right-click it, or press F over it, to turn it face up.</div><div>Counters: C adds one and X removes one. On a creature, removing below zero gives −1 counters, shown in red. Planeswalkers show loyalty in a shield at the bottom right.</div><div>Mana creatures: right-click one for Tap for Green and the like; a plain click just taps it.</div><div>Mana pool: tapping a land adds its mana, and asks which colour when there is a choice. Click a lit symbol to spend one. Shift-click or right-click a symbol to add one by hand. The pool empties when the phase changes.</div><div>Right-click your graveyard to exile all of it. Right-click your library to show the top card to your opponent only.</div><div>Ending your turn passes it. Your opponent can still act (crack a fetch land, cast at end of turn) and clicks Start my turn when ready.</div><div>Ragavan and similar: the defending player right-clicks their library and picks Exile top card for opponent to cast. Both players see the card; the attacker gets a Cast this card button. If cast, it goes back to its owner's graveyard or exile when it leaves play. If not, it stays in the owner's exile.</div><div>Attackers get a gold border that clears when combat ends.</div><div>Life: use − and + beside either player. Shift-click changes by 5.</div><div>Undo steps back your own last action and says so in the log. It cannot go back past a shuffle, the end of a turn, or anything your opponent did to you.</div><div>Match score: click the circle under a player's life when they win a game. Right-click takes it back.</div></div>
+  <div class="two"><div><h4>Mouse</h4><div>Click a card in hand: lands enter play, spells go to the stack.</div><div>Shift-click a land in hand to play it tapped.</div><div>Click a spell on the stack to resolve it.</div><div>Click a permanent to tap or untap it.</div><div>Click your library to draw. Right-click it to scry, search, mill or shuffle.</div><div>Click a graveyard or exile pile to look through it.</div><div>Before each game: High roll, then the winner clicks I'll go first and it becomes their turn 1. Each player draws an opening hand, mulligans if they want, then keeps.</div><div>Lands that can become creatures: right-click and choose Become a creature. The land moves to the creature row and goes back when the turn ends.</div><div>After you keep, the table offers pregame actions for cards that mention your opening hand, such as Leylines.</div><div>Morph: right-click a card in hand. Manifest: right-click your library. Either puts the card face down in the creature row marked as a 2/2. Right-click it, or press F over it, to turn it face up.</div><div>Emrakul, the Promised End: the player being controlled opens the ☰ menu and gives the opponent control of their turn. The controller then plays that turn from their own screen. When it ends, the controlled player takes an extra turn.</div><div>Counters: C adds one and X removes one. On a creature, removing below zero gives −1 counters, shown in red. Planeswalkers show loyalty in a shield at the bottom right.</div><div>Mana creatures: right-click one for Tap for Green and the like; a plain click just taps it.</div><div>Mana pool: tapping a land adds its mana, and asks which colour when there is a choice. Click a lit symbol to spend one. Shift-click or right-click a symbol to add one by hand. The pool empties when the phase changes.</div><div>Right-click your graveyard to exile all of it. Right-click your library to show the top card to your opponent only.</div><div>Ending your turn passes it. Your opponent can still act (crack a fetch land, cast at end of turn) and clicks Start my turn when ready.</div><div>Ragavan and similar: the defending player right-clicks their library and picks Exile top card for opponent to cast. Both players see the card; the attacker gets a Cast this card button. If cast, it goes back to its owner's graveyard or exile when it leaves play. If not, it stays in the owner's exile.</div><div>Attackers get a gold border that clears when combat ends.</div><div>Life: use − and + beside either player. Shift-click changes by 5.</div><div>Undo steps back your own last action and says so in the log. It cannot go back past a shuffle, the end of a turn, or anything your opponent did to you.</div><div>Match score: click the circle under a player's life when they win a game. Right-click takes it back.</div></div>
   <div><h4>Keys, with the pointer over your card</h4>${k('T','tap or untap')}${k('A','attack: taps and gets a gold border')}${k('V','attack with vigilance: gold border, stays untapped')}${k('B','block: then click the attacker')}${k('R','target: then click a card or player')}${k('C','add a counter')}${k('X','remove a counter')}${k('F','transform')}${k('G','graveyard')}${k('E','exile')}${k('H','hand')}<h4 style="margin-top:10px">Anywhere</h4>${k('D','draw a card')}${k('S','shuffle')}${k('Ctrl+Z','undo your last action')}${k('Space','next phase')}${k('Esc','cancel')}</div></div>`, [['Got it',()=>closeModal(),'go']]);
 }
 function sideboardModal(){
@@ -946,12 +999,12 @@ document.addEventListener('pointerup', e=>{
   }
   if(e.button!==0) return;
   if(G.mode){ finishMode(d.id); return; }
-  if(!d.mine) return;
+  if(!d.mine){ if(iControl()) remoteClick(d.id, d.z, e.clientX, e.clientY); return; }
   if(d.z==='hand'){ const f=find(d.id); if(e.shiftKey && f && isLand(f.c)){ move(d.id,'bf',{tap:true}); changed(); } else playFromHand(d.id); } else if(d.z==='bf') toggleTap(d.id, e.clientX, e.clientY); else if(d.z==='st') resolve(d.id);
 });
 document.addEventListener('contextmenu', e=>{
   const card=e.target.closest('.card[data-id]');
-  if(card && !card.closest('.pile')){ e.preventDefault(); if(card.dataset.o==='me' && card.dataset.z!=='search') cardMenu(card.dataset.id, e.clientX, e.clientY); return; }
+  if(card && !card.closest('.pile')){ e.preventDefault(); if(card.dataset.o==='me' && card.dataset.z!=='search') cardMenu(card.dataset.id, e.clientX, e.clientY); else if(card.dataset.o==='opp' && iControl()) remoteMenu(card.dataset.id, e.clientX, e.clientY); return; }
   const pile=e.target.closest('.pile'); if(pile){ e.preventDefault(); if(pile.dataset.o==='me' && pile.dataset.pile==='lib') pileMenu('lib', e.clientX, e.clientY); else if(pile.dataset.o==='me' && pile.dataset.pile==='gy') gyMenu(e.clientX, e.clientY); return; }
   const mp=e.target.closest('[data-mana]'); if(mp){ e.preventDefault(); addMana(mp.dataset.mana); changed(); return; }
   const wm=e.target.closest('[data-win]'); if(wm){ e.preventDefault(); markWin(wm.dataset.win, -1); return; }
@@ -974,6 +1027,7 @@ document.addEventListener('click', e=>{
   const fb=t.closest('[data-first]'); if(fb){ if(fb.disabled) return; const v=fb.dataset.first; if(v==='mull') mulligan(); else if(v==='roll') highRoll(); else if(v==='deal') drawOpening(); else if(v==='keep') keepHand(); else if(v==='me' && !G.turn.n) takeFirst(G.myId); return; }
   const pile=t.closest('.pile'); if(pile){ const z=pile.dataset.pile, mine=pile.dataset.o==='me';
     if(mine && z==='lib'){ draw(1); changed(); }
+    else if(!mine && z==='lib' && iControl()){ cmd('draw'); }
     else if(mine) zoneModal('Your '+ZN[z], ()=>G.me[z], z, true);
     else if((z==='gy'||z==='ex') && G.opp) zoneModal(`${G.opp.name}'s ${ZN[z]}`, ()=>G.opp[z]||[], z, false);
     return; }
