@@ -31,7 +31,7 @@ h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
 .screen{height:100%}
 
 /* ---------- lobby ---------- */
-#lobby{display:grid;place-items:center;background:radial-gradient(120% 90% at 50% 0%,#1d353a,var(--rail) 70%);overflow:auto;padding:24px 16px}
+#lobby{position:relative;display:grid;place-items:center;background:radial-gradient(120% 90% at 50% 0%,#1d353a,var(--rail) 70%);overflow:auto;padding:24px 16px}
 .lobbybox{width:min(560px,100%);display:flex;flex-direction:column;gap:18px}
 .lobbybox h1{font-size:44px;letter-spacing:.02em}
 .lobbybox p{margin:0;color:var(--dim);max-width:60ch}
@@ -40,6 +40,8 @@ h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
 .choices{display:grid;gap:10px}
 .choice{display:flex;gap:12px;align-items:center;justify-content:space-between;text-align:left;padding:14px 16px;background:#12262b}
 .choice b{display:block;font-size:16px}.choice span{color:var(--dim);font-size:13px}
+.corner{position:absolute;top:16px;right:20px;border:1px solid var(--brass);border-radius:99px;padding:6px 14px;text-decoration:none;font-weight:800;color:var(--brass);background:#0003}
+.corner:hover{background:var(--brass);color:#1b1205}
 .joinrow{display:flex;gap:8px}.joinrow input{flex:1;text-transform:uppercase;letter-spacing:.2em;font-weight:800;min-width:0}
 
 /* ---------- deck screen ---------- */
@@ -215,6 +217,7 @@ kbd.k{border:1px solid var(--line);border-radius:4px;padding:0 5px;font:12px var
 <body>
 
 <div id="lobby" class="screen">
+  <a class="corner" href="draft/" title="Booster draft for up to eight, then play your deck here">Draft Table →</a>
   <div class="lobbybox">
     <h1>Modern Table <small id="verTag" style="font:600 13px var(--ui);color:var(--dim);letter-spacing:.08em"></small></h1>
     <p>A free-form Magic table for two. Nothing is enforced, so you play it like paper, but the table does the chores: it untaps and draws for you, sorts your lands, and keeps life and the stack in view.</p>
@@ -228,7 +231,6 @@ kbd.k{border:1px solid var(--line);border-radius:4px;padding:0 5px;font:12px var
       <button class="choice" id="resumeBtn" hidden><div><b>Return to your last table</b><span id="resumeTxt"></span></div><span>→</span></button>
     </div>
     <p id="lobbyMsg" style="color:var(--go)"></p>
-    <p><a href="draft/" style="color:var(--brass)">Draft Table</a> <span style="color:var(--dim)">· booster draft for up to eight, then play your deck here</span></p>
     <p><a href="#" id="fbLink" style="color:var(--brass)">Send feedback</a> <span style="color:var(--dim)">· report a bug or suggest a change</span></p>
   </div>
 </div>
@@ -287,7 +289,7 @@ kbd.k{border:1px solid var(--line);border-radius:4px;padding:0 5px;font:12px var
 <script>/*__PEERJS__*/</script>
 <script>
 "use strict";
-const VERSION = 'v1.19';
+const VERSION = 'v1.20';
 const FEEDBACK_FORM = 'https://docs.google.com/forms/d/e/1FAIpQLSf0cJmkNMBHo20umPjU7AZN9L3n4YF0OAdPcftA5Vgtpb0bzA/viewform', FB_VERSION = 'entry.424564323', FB_DETAILS = 'entry.2140001333';
 function feedbackUrl(){
   let details = 'not in a game';
