@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build index.html (the whole game in one file) from src/. Run: python3 build.py"""
+"""Build index.html (the Modern Table, one file) and draft/index.html (the Draft Table) from src/. Run: python3 build.py"""
 import json, re, collections, sys
 decks=[]; cur=None; sec='main'
 for line in open('src/decks.txt', encoding='utf-8'):
@@ -32,3 +32,12 @@ html=src.replace('/*__DECKS__*/[]',json.dumps(out,separators=(',',':'),ensure_as
 open('index.html','w', encoding='utf-8').write(html)
 ver=re.search(r"const VERSION = '([^']+)'", src).group(1)
 print(f'built index.html: {len(html)//1024} KB, {len(out)} decks, {bad} dropped, version {ver}')
+
+# Draft Table: small page that loads PeerJS from ../src and one odds file per set from draft/sets/ (see tools/make_draft_sets.py)
+dsrc=open('src/draft.src.html', encoding='utf-8').read()
+sets=json.load(open('draft/sets/index.json', encoding='utf-8'))
+assert '/*__SETS__*/[]' in dsrc and sets
+dhtml=dsrc.replace('/*__SETS__*/[]', json.dumps(sets,separators=(',',':'),ensure_ascii=False))
+open('draft/index.html','w', encoding='utf-8').write(dhtml)
+dver=re.search(r"const VERSION = '([^']+)'", dsrc).group(1)
+print(f'built draft/index.html: {len(dhtml)//1024} KB, {len(sets)} sets, version {dver}')

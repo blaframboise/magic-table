@@ -294,7 +294,7 @@ kbd.k{border:1px solid var(--line);border-radius:4px;padding:0 5px;font:12px var
 </script>
 <script>
 "use strict";
-const VERSION = 'v1.17';
+const VERSION = 'v1.18';
 const FEEDBACK_FORM = 'https://docs.google.com/forms/d/e/1FAIpQLSf0cJmkNMBHo20umPjU7AZN9L3n4YF0OAdPcftA5Vgtpb0bzA/viewform', FB_VERSION = 'entry.424564323', FB_DETAILS = 'entry.2140001333';
 function feedbackUrl(){
   let details = 'not in a game';
@@ -365,7 +365,7 @@ const isSpell = c => /\b(Instant|Sorcery)\b/.test(faceType(c));
 
 /* ================= deck text ================= */
 function parseDeck(text){
-  const main=new Map(), side=new Map(); let sec='main', seenCard=false;
+  const main=new Map(), side=new Map(), art={}; let sec='main', seenCard=false;
   for(let raw of text.split(/\r?\n/)){
     let line = raw.trim().replace(/^[*•-]\s*/,'');
     if(!line){ if(seenCard && sec==='main' && /\n\s*\n/.test(text.replace(/\r/g,'')) && !/^\s*(sideboard|deck|main)/im.test(text)) sec='side'; continue; }
@@ -377,10 +377,11 @@ function parseDeck(text){
     if(/^sb:/i.test(line)) sec='side';
     let name = m[2].replace(/\s+\([A-Z0-9]{2,6}\)\s*[\w★-]*\s*$/,'').replace(/\s+\[[^\]]*\]\s*$/,'').replace(/\s*\/{1,2}\s*/g, ' // ').trim();
     if(!name || sec==='skip'){ continue; }
+    const am = m[2].match(/\[id:([0-9a-f-]{36})\]\s*$/i); if(am) art[keyOf(name)] = 'id:'+am[1].toLowerCase();   // exact printing, as saved by the Draft Table
     seenCard = true;
     const tgt = sec==='side' ? side : main; tgt.set(name, (tgt.get(name)||0) + (+m[1]));
   }
-  return { main:[...main], side:[...side] };
+  return { main:[...main], side:[...side], art };
 }
 const deckCount = l => l.reduce((a,[,c]) => a+c, 0);
 const deckText = d => d.main.map(([n,c])=>c+' '+n).join('\n') + (d.side.length ? '\n\nSideboard\n'+d.side.map(([n,c])=>c+' '+n).join('\n') : '');
@@ -618,10 +619,11 @@ function pregameModal(){
 }
 function mulligan(){ const m=G.me; m.lib.push(...m.hand.splice(0)); m.mull++; shuffleLib(true); draw(7,true); log(`${m.name} mulligans (number ${m.mull}) and must put ${m.mull} on the bottom.`); toast(`Right-click ${m.mull} card${m.mull>1?'s':''} in hand → Bottom of library.`); changed(); }
 async function loadDeck(d, name, onProgress){
-  await ensureCards([...d.main, ...d.side].map(x=>x[0]), onProgress);
+  const art=d.art||{}, kk=n=>art[keyOf(n)]||keyOf(n);
+  await ensureCards([...d.main, ...d.side].map(x=>kk(x[0])), onProgress);
   const m=G.me; for(const z of ['lib','hand','bf','gy','ex','st','side']){ for(const c of m[z]) if(c.o!==G.myId && !c.tok) send({t:'give', card:c, zone:'lib'}); m[z]=[]; }
-  for(const [n,c] of d.main) for(let i=0;i<c;i++) m.lib.push(mk(keyOf(n)));
-  for(const [n,c] of d.side) for(let i=0;i<c;i++) m.side.push(mk(keyOf(n)));
+  for(const [n,c] of d.main) for(let i=0;i<c;i++) m.lib.push(mk(kk(n)));
+  for(const [n,c] of d.side) for(let i=0;i<c;i++) m.side.push(mk(kk(n)));
   m.deck=name; m.life=20; m.ctr={poison:0,energy:0}; m.mull=0; m.arrows=[]; m.roll=null; m.dealt=false; m.kept=false; m.mana=noMana(); m.energySeen=false; m.drew=0;
   log(`${m.name} brought ${name}.`); shuffleUp();
 }
@@ -1044,11 +1046,12 @@ function renderTab(){
 }
 function viewDeck(d, name, sub, link, canSave, savedIdx){
   const v=$('#deckView'), nm=deckCount(d.main), ns=deckCount(d.side);
-  const line=([n,c])=>`<div data-kk="${esc(keyOf(n))}"><span class="n">${c}</span>${esc(n)}</div>`;
-  v.innerHTML = `<div><h3>${esc(name)}</h3><span class="hint">${esc(sub)} · ${nm} main, ${ns} sideboard${nm<60?' · fewer than 60 cards':''}</span></div>
+  const art=d.art||{}, kk=n=>art[keyOf(n)]||keyOf(n), limited=Object.keys(art).length>0;
+  const line=([n,c])=>`<div data-kk="${esc(kk(n))}"><span class="n">${c}</span>${esc(n)}</div>`;
+  v.innerHTML = `<div><h3>${esc(name)}</h3><span class="hint">${esc(sub)} · ${nm} main, ${ns} sideboard${nm<60 && !limited?' · fewer than 60 cards':''}</span></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="go" id="useDeck">Play this deck</button>${savedIdx==null?'<button id="saveDeck">Save to my decks</button>':'<button id="delDeck">Delete</button>'}${link?`<a href="${link}" target="_blank" rel="noopener" style="color:var(--brass)">View on MTGGoldfish</a>`:''}<span class="hint" id="deckMsg"></span></div>
     <div class="cols"><div class="sec">Main deck</div>${d.main.map(line).join('')}<div class="sec">Sideboard</div>${d.side.map(line).join('')||'<div class="hint">None</div>'}</div>`;
-  ensureCards([...d.main,...d.side].map(x=>x[0]));
+  ensureCards([...d.main,...d.side].map(x=>kk(x[0])));
   $('#useDeck').onclick=async()=>{ const b=$('#useDeck'); b.disabled=true; await loadDeck(d, name, (a,t)=>{ $('#deckMsg').textContent=`Fetching cards ${a}/${t}…`; }); showTable(); changed(); };
   const sb=$('#saveDeck'); if(sb) sb.onclick=()=>{ const sv=store.get('mt_decks',[]); sv.unshift({name, text:deckText(d)}); store.set('mt_decks',sv); toast('Saved'); };
   const db=$('#delDeck'); if(db) db.onclick=()=>{ const sv=store.get('mt_decks',[]); sv.splice(savedIdx,1); store.set('mt_decks',sv); renderTab(); };
@@ -1154,6 +1157,14 @@ if(sess && sess.me && Date.now()-sess.at < 864e5){
     connect(); const ks=[]; for(const z of Object.keys(ZN)) for(const c of G.me[z]) if(c.k) ks.push(c.k); ensureCards(ks).then(render);
     if(G.me.deck) showTable(); else showDecks(); };
 }
+/* Links from the Draft Table: ?t=CODE&r=h|g opens or joins that table, ?r=s is practice, &d=1 shows the newest saved deck. */
+{ const q=new URLSearchParams(location.search), t=(q.get('t')||'').toUpperCase().replace(/[^A-Z]/g,'').slice(0,6), r=q.get('r'), d=q.get('d');
+  if(r==='s' || (t.length>=4 && (r==='h' || r==='g'))){
+    ['t','r','d'].forEach(k=>q.delete(k)); history.replaceState(null, '', location.pathname+(q.toString() ? '?'+q : ''));
+    begin(r==='s' ? 'solo' : r==='h' ? 'host' : 'guest', t);
+    const sv=store.get('mt_decks',[]);
+    if(d && sv.length){ tab='saved'; $$('.tabs button').forEach(x=>x.classList.toggle('on', x.dataset.tab==='saved')); renderTab(); viewDeck(parseDeck(sv[0].text), sv[0].name, 'Saved deck', null, false, 0); }
+  } }
 window.addEventListener('beforeunload', ()=>save());
 window.__G = G;
 </script>
