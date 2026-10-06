@@ -7,10 +7,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,800&display=swap">
 <style>
-/* Same palette and type as the Modern Table, so the two feel like one place. */
+/* Same type and layout as the Modern Table, in mahogany instead of green felt so you can tell the two apart at a glance. */
 :root{
-  --felt:#16272b; --felt2:#0f1c20; --rail:#0b1417; --line:#2a4047; --ink:#e9efe9; --dim:#8ea3a3;
-  --brass:#d9b25f; --go:#f08a24; --bad:#e2574c; --good:#5fc98d; --opp:#7fb3ff;
+  --felt:#2e1b16; --felt2:#22130f; --rail:#170c09; --line:#52332a; --ink:#f2e9e3; --dim:#b59d92;
+  --brass:#e0a66a; --go:#d9683c; --bad:#e2574c; --good:#5fc98d; --opp:#7fb3ff;
   --display:"Marcellus",Georgia,serif; --ui:"Nunito Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   color-scheme:dark;
 }
@@ -18,15 +18,15 @@
 html,body{height:100%;margin:0}
 body{background:var(--rail);color:var(--ink);font:14px/1.4 var(--ui);overflow:hidden;user-select:none;-webkit-user-select:none}
 button,input,select{font:inherit;color:inherit}
-button{cursor:pointer;background:#1c3238;border:1px solid var(--line);border-radius:6px;padding:7px 12px}
+button{cursor:pointer;background:#3b231c;border:1px solid var(--line);border-radius:6px;padding:7px 12px}
 button:hover{border-color:var(--brass)}
 button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid var(--brass);outline-offset:1px}
-button.go{background:var(--go);border-color:var(--go);color:#1b1205;font-weight:800}
+button.go{background:var(--go);border-color:var(--go);color:#1c0c05;font-weight:800}
 button.ghost{background:transparent}
 button.sm{font-size:12px;padding:3px 8px}
 button.on{border-color:var(--brass);color:var(--brass)}
 button:disabled{opacity:.45;cursor:default}button:disabled:hover{border-color:var(--line)}
-input,select{background:#0c181b;border:1px solid var(--line);border-radius:6px;padding:8px 10px}
+input,select{background:#140a07;border:1px solid var(--line);border-radius:6px;padding:8px 10px}
 input{user-select:text;-webkit-user-select:text}
 a{color:var(--brass)}
 h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
@@ -34,14 +34,14 @@ h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
 .screen{height:100%}
 .hint{color:var(--dim)}
 
-#lobby{display:grid;place-items:center;background:radial-gradient(120% 90% at 50% 0%,#1d353a,var(--rail) 70%);overflow:auto;padding:24px 16px}
+#lobby{display:grid;place-items:center;background:radial-gradient(120% 90% at 50% 0%,#40241c,var(--rail) 70%);overflow:auto;padding:24px 16px}
 .lobbybox{width:min(560px,100%);display:flex;flex-direction:column;gap:18px}
 .lobbybox h1{font-size:44px;letter-spacing:.02em}
 .lobbybox p{margin:0;color:var(--dim);max-width:60ch}
 .field{display:flex;flex-direction:column;gap:6px}
 .field label{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
 .choices{display:grid;gap:10px}
-.choice{display:flex;gap:12px;align-items:center;justify-content:space-between;text-align:left;padding:14px 16px;background:#12262b}
+.choice{display:flex;gap:12px;align-items:center;justify-content:space-between;text-align:left;padding:14px 16px;background:#2b1812}
 .choice b{display:block;font-size:16px}.choice span{color:var(--dim);font-size:13px}
 .joinrow{display:flex;gap:8px}.joinrow input{flex:1;text-transform:uppercase;letter-spacing:.2em;font-weight:800;min-width:0}
 
@@ -55,7 +55,7 @@ h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
 #rail{border-right:1px solid var(--line);background:var(--rail);overflow:auto;padding:12px;display:flex;flex-direction:column;gap:6px}
 #rail h3{font-size:12px;font-family:var(--ui);font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin:4px 0}
 .seat{display:grid;grid-template-columns:18px 1fr auto;gap:6px;align-items:center;padding:6px 8px;border:1px solid transparent;border-radius:6px}
-.seat.me{border-color:var(--brass);background:#12262b}
+.seat.me{border-color:var(--brass);background:#2b1812}
 .seat .dot{width:9px;height:9px;border-radius:50%;background:var(--line)}
 .seat.on .dot{background:var(--good)}.seat.busy .dot{background:var(--go)}.seat.off .dot{background:var(--bad)}
 .seat small{color:var(--dim);display:block}
@@ -70,7 +70,7 @@ h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
 .grid.sm{grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px}
 .grid.xs{grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:4px}
-.c{position:relative;aspect-ratio:488/680;border-radius:4.6%/3.3%;background:#243b40;box-shadow:0 2px 6px #0008;cursor:pointer;overflow:hidden;transition:transform .12s,box-shadow .12s}
+.c{position:relative;aspect-ratio:488/680;border-radius:4.6%/3.3%;background:#3f2a23;box-shadow:0 2px 6px #0008;cursor:pointer;overflow:hidden;transition:transform .12s,box-shadow .12s}
 .c:hover{transform:translateY(-3px)}
 .c img{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none}
 .c .txt{position:absolute;inset:0;padding:7%;display:flex;flex-direction:column;gap:3px;font-size:11px;line-height:1.15;border:1px solid var(--line);border-radius:inherit;pointer-events:none;overflow:hidden}
@@ -88,7 +88,7 @@ h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
 .col .c + .c{margin-top:calc(var(--w) * -1.2)}
 .col .c:hover{transform:none;box-shadow:0 0 0 2px var(--brass)}
 .colh{font-size:11px;font-weight:800;color:var(--ink);text-align:center;margin-bottom:4px}.colh span{color:var(--dim);font-weight:600}
-.pane{background:#0c181b;border:1px solid var(--line);border-radius:8px;padding:12px;min-height:120px}
+.pane{background:#140a07;border:1px solid var(--line);border-radius:8px;padding:12px;min-height:120px}
 .lands{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .land{display:flex;gap:4px;align-items:center;border:1px solid var(--line);border-radius:6px;padding:3px 6px}
 .land b{min-width:2ch;text-align:center;font-variant-numeric:tabular-nums}
@@ -97,7 +97,7 @@ table{border-collapse:collapse;width:100%;max-width:640px}
 th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line)}
 th{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);font-weight:800}
 td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
-.match{border:1px solid var(--line);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px;max-width:640px;background:#0c181b}
+.match{border:1px solid var(--line);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px;max-width:640px;background:#140a07}
 .match.mine{border-color:var(--brass)}
 .chips{display:flex;gap:6px;flex-wrap:wrap}
 .setrow{display:flex;gap:12px;flex-wrap:wrap;align-items:end}
@@ -134,7 +134,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 <script src="../src/peerjs.min.js"></script>
 <script>
 "use strict";
-const VERSION = 'v0.3';
+const VERSION = 'v0.4';
 const SETS = /*__SETS__*/[];
 const PREFIX = 'draft-table-v1-';
 const $ = (s, el=document) => el.querySelector(s), $$ = (s, el=document) => [...el.querySelectorAll(s)];
