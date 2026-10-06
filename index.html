@@ -40,8 +40,9 @@ h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
 .choices{display:grid;gap:10px}
 .choice{display:flex;gap:12px;align-items:center;justify-content:space-between;text-align:left;padding:14px 16px;background:#12262b}
 .choice b{display:block;font-size:16px}.choice span{color:var(--dim);font-size:13px}
-.corner{position:absolute;top:16px;right:20px;border:1px solid var(--brass);border-radius:99px;padding:6px 14px;text-decoration:none;font-weight:800;color:var(--brass);background:#0003}
-.corner:hover{background:var(--brass);color:#1b1205}
+/* the way to the Draft Table wears the Draft Table's colours */
+.corner{position:absolute;top:16px;right:20px;border:1px solid #e0a66a;border-radius:99px;padding:6px 14px;text-decoration:none;font-weight:800;color:#e0a66a;background:#5e3a2e;box-shadow:0 2px 8px #0006}
+.corner:hover{background:#71483a;color:#f3c48e}
 .joinrow{display:flex;gap:8px}.joinrow input{flex:1;text-transform:uppercase;letter-spacing:.2em;font-weight:800;min-width:0}
 
 /* ---------- deck screen ---------- */
@@ -297,7 +298,7 @@ kbd.k{border:1px solid var(--line);border-radius:4px;padding:0 5px;font:12px var
 </script>
 <script>
 "use strict";
-const VERSION = 'v1.20';
+const VERSION = 'v1.21';
 const FEEDBACK_FORM = 'https://docs.google.com/forms/d/e/1FAIpQLSf0cJmkNMBHo20umPjU7AZN9L3n4YF0OAdPcftA5Vgtpb0bzA/viewform', FB_VERSION = 'entry.424564323', FB_DETAILS = 'entry.2140001333';
 function feedbackUrl(){
   let details = 'not in a game';
