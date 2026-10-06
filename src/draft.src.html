@@ -125,7 +125,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 <script src="../src/peerjs.min.js"></script>
 <script>
 "use strict";
-const VERSION = 'v0.1';
+const VERSION = 'v0.2';
 const SETS = /*__SETS__*/[];
 const PREFIX = 'draft-table-v1-';
 const $ = (s, el=document) => el.querySelector(s), $$ = (s, el=document) => [...el.querySelectorAll(s)];
@@ -159,13 +159,18 @@ async function ensure(ids, onProgress){
   let done=0;
   for(let i=0;i<want.length;i+=75){
     const chunk=want.slice(i,i+75);
-    try{
-      const r=await fetch('https://api.scryfall.com/cards/collection', { method:'POST', headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ identifiers:chunk.map(x=>{ const p=x.split(':'); return {set:p[0], collector_number:p[1]}; }) }) });
-      if(!r.ok) throw new Error(r.status);
-      const j=await r.json();
-      for(const c of j.data||[]) CARDS[c.set+':'+c.collector_number]=toCard(c);
-    }catch(e){ console.warn('Scryfall lookup failed', e); }
+    /* The odds data numbers two-faced, adventure and split cards "151a"; Scryfall calls the same card "151". Ask for the plain number first, then the number as written. */
+    for(const strip of [true, false]){
+      const ask={}; for(const x of chunk){ if(CARDS[x]) continue; const p=x.split(':'), n=strip ? p[1].replace(/^(\d+)a$/, '$1') : p[1]; if(!strip && n===p[1].replace(/^(\d+)a$/, '$1')) continue; ask[p[0]+':'+n]=x; }
+      const keys=Object.keys(ask); if(!keys.length) continue;
+      try{
+        const r=await fetch('https://api.scryfall.com/cards/collection', { method:'POST', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({ identifiers:keys.map(k=>{ const p=k.split(':'); return {set:p[0], collector_number:p[1]}; }) }) });
+        if(!r.ok) throw new Error(r.status);
+        const j=await r.json();
+        for(const c of j.data||[]){ const x=ask[c.set+':'+c.collector_number]; if(x) CARDS[x]=toCard(c); }
+      }catch(e){ console.warn('Scryfall lookup failed', e); }
+    }
     for(const x of chunk){ pendingIds.delete(x); if(!CARDS[x]) missed[x]=Date.now(); }
     done+=chunk.length; onProgress && onProgress(done, want.length);
     if(i+75<want.length) await sleep(110);
