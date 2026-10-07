@@ -302,7 +302,7 @@ kbd.k{border:1px solid var(--line);border-radius:4px;padding:0 5px;font:12px var
 </script>
 <script>
 "use strict";
-const VERSION = 'v1.27';
+const VERSION = 'v1.28';
 const FEEDBACK_FORM = 'https://docs.google.com/forms/d/e/1FAIpQLSf0cJmkNMBHo20umPjU7AZN9L3n4YF0OAdPcftA5Vgtpb0bzA/viewform', FB_VERSION = 'entry.424564323', FB_DETAILS = 'entry.2140001333';
 function feedbackUrl(){
   let details = 'not in a game';
@@ -1083,6 +1083,8 @@ document.addEventListener('pointerup', e=>{
   closeMenu(); G.mode={type:'arrow', from:d.id}; finishMode(target);
 });
 document.addEventListener('contextmenu', e=>{
+  if(e.target.closest('#table, #ctx, #modal, #shown, #zoom') && !e.target.closest('input, textarea')) e.preventDefault();
+  if(e.target.closest('#ctx')) return;
   const card=e.target.closest('.card[data-id]');
   if(card && !card.closest('.pile')){ e.preventDefault(); if(rdown || Date.now()-rdoneAt<400) return; cardContext(card, e.clientX, e.clientY); return; }
   if(Date.now()-rdoneAt<400 && e.target.closest('.avatar, #board')){ e.preventDefault(); return; }
@@ -1090,7 +1092,8 @@ document.addEventListener('contextmenu', e=>{
   const mp=e.target.closest('[data-mana]'); if(mp){ e.preventDefault(); addMana(mp.dataset.mana); changed(); return; }
   const wm=e.target.closest('[data-win]'); if(wm){ e.preventDefault(); markWin(wm.dataset.win, -1); return; }
   const chip=e.target.closest('[data-ctr]'); if(chip){ e.preventDefault(); adjCtr(chip.dataset.pl, chip.dataset.ctr, -1); return; }
-  if(e.target.closest('#myHand')){ e.preventDefault(); handMenu(e.clientX,e.clientY); }
+  if(e.target.closest('#myHand')){ e.preventDefault(); handMenu(e.clientX,e.clientY); return; }
+  const av=e.target.closest('.avatar'); if(av && av.dataset.pl && arrowsOn(av.dataset.pl) && Date.now()-rdoneAt>400) menu(e.clientX, e.clientY, [['Clear targets',()=>clearTargets(av.dataset.pl)]]);
 });
 function adjCtr(pl, k, d){ if(pl===G.myId){ G.me.ctr[k]=Math.max(0,(G.me.ctr[k]||0)+d); log(`${G.me.name}: ${k} ${G.me.ctr[k]}.`); changed(); } else { send({t:'adj', ctr:k, d}); log(`${G.me.name} changes ${G.opp.name}'s ${k} by ${d>0?'+':''}${d}.`); } }
 document.addEventListener('click', e=>{
