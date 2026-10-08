@@ -138,7 +138,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 <script src="../src/peerjs.min.js"></script>
 <script>
 "use strict";
-const VERSION = 'v0.6';
+const VERSION = 'v0.7';
 const SETS = /*__SETS__*/[];
 const PREFIX = 'draft-table-v1-';
 const $ = (s, el=document) => el.querySelector(s), $$ = (s, el=document) => [...el.querySelectorAll(s)];
@@ -475,18 +475,22 @@ function render(){
       h+=`<div class="bar"><h3>Pack ${V.round}, pick ${V.size-V.pack.length+1}</h3><span class="clock" id="clock"></span><span style="margin-left:auto"></span><button class="go" id="takeBtn"${s?'':' disabled'}>${s ? 'Take '+esc(sd?sd.n:'this card') : 'Choose a card'}</button></div>
         <div class="grid" id="pack">${pk.map(c=>cardHTML(c, c.u===sel?'sel':'')).join('')}</div><p class="hint" style="margin:0">Click a card, then Take. Double-click takes it straight away.</p>`;
     } else h+=`<div class="bar"><h3>Pack ${V.round}</h3></div><p class="hint" style="margin:0">Waiting for ${esc(from.name)} to pass you a pack.</p>`;
-    h+=`<div class="sec">Your picks (${V.pool.length})</div><div class="grid xs">${V.pool.slice().sort(byColour).map(c=>cardHTML(c)).join('')}</div>`;
+    loadBuild(); const deck=V.pool.filter(inMain), side=V.pool.filter(c=>!inMain(c));
+    h+=`<div class="pane" data-zone="deck"><div class="bar"><h3>Your picks: deck <b style="color:var(--brass)">${deck.length}</b></h3><span class="hint">new picks land here · click a card to move it to the sideboard</span></div>${regionsHTML(deck, 0) || '<p class="hint">Your picks will show up here, sorted by type and mana value.</p>'}</div>
+      ${side.length ? `<div class="pane" data-zone="side"><div class="bar"><h3>Sideboard <b style="color:var(--brass)">${side.length}</b></h3><span class="hint">click a card to put it back in your deck</span></div>${regionsHTML(side, 0)}</div>` : ''}`;
   }
   else h+=buildHTML(host, me);
   setHTML($('#main'), h);
   tickClock();
 }
 /* ---------- after the draft: deck building and the tournament ---------- */
-function loadBuild(){ const key=V.code+':'+V.gen; if(B && B.code===key) return; B=store.get('dt_build', null); if(!B || B.code!==key) B={code:key, deck:[], lands:{Plains:0,Island:0,Swamp:0,Mountain:0,Forest:0}}; }
+function loadBuild(){ const key=V.code+':'+V.gen; if(B && B.code===key) return; B=store.get('dt_build', null); if(!B || B.code!==key) B={code:key, side:[], lands:{Plains:0,Island:0,Swamp:0,Mountain:0,Forest:0}};
+  if(!B.side){ const d=B.deck||[]; B.side=d.length ? (V.pool||[]).filter(c=>!d.includes(c.u)).map(c=>c.u) : []; delete B.deck; } }   // builds saved before v0.7 listed the deck instead
+const inMain = c => !B.side.includes(c.u);
 const saveBuild = () => store.set('dt_build', B);
 const landTotal = () => LANDS.reduce((a,[,n])=>a+(B.lands[n]||0), 0);
 function suggestLands(){
-  const deck=V.pool.filter(c=>B.deck.includes(c.u)), n={W:0,U:0,B:0,R:0,G:0}; let tot=0;
+  const deck=V.pool.filter(inMain), n={W:0,U:0,B:0,R:0,G:0}; let tot=0;
   for(const c of deck){ const d=CARDS[c.id]; if(d) for(const m of d.mc.matchAll(/\{([^}]+)\}/g)) for(const k of 'WUBRG') if(m[1].includes(k)){ n[k]++; tot++; } }
   const want=Math.max(0, 40-deck.length); let given=0; const parts=LANDS.map(([k,name])=>{ const x=tot ? want*n[k]/tot : 0, f=Math.floor(x); given+=f; return {name, f, rem:x-f}; });
   parts.sort((a,b)=>b.rem-a.rem); for(let i=0; given<want && tot && i<parts.length; i++){ parts[i].f++; given++; }
@@ -495,7 +499,7 @@ function suggestLands(){
 }
 function deckText(){
   const lines=list=>{ const m=new Map(); for(const c of list){ const d=CARDS[c.id]; if(!d) continue; const k=d.n+' [id:'+d.sid+']'; m.set(k, (m.get(k)||0)+1); } return [...m].map(([k,n])=>n+' '+k); };
-  const deck=V.pool.filter(c=>B.deck.includes(c.u)), side=V.pool.filter(c=>!B.deck.includes(c.u));
+  const deck=V.pool.filter(inMain), side=V.pool.filter(c=>!inMain(c));
   const basics=LANDS.filter(([,n])=>B.lands[n]>0).map(([,n])=>B.lands[n]+' '+n);
   return [...lines(deck), ...basics].join('\n') + '\n\nSideboard\n' + lines(side).join('\n');
 }
@@ -529,13 +533,13 @@ function regionsHTML(cards, basics){
 }
 function buildHTML(host, me){
   loadBuild();
-  const T=V.tour, deck=V.pool.filter(c=>B.deck.includes(c.u)).sort(byColour), side=V.pool.filter(c=>!B.deck.includes(c.u)).sort(byColour), lt=landTotal(), total=deck.length+lt;
+  const T=V.tour, deck=V.pool.filter(inMain).sort(byColour), side=V.pool.filter(c=>!inMain(c)).sort(byColour), lt=landTotal(), total=deck.length+lt;
   let h=`<div class="bar"><button class="${tabNow==='deck'?'on':''}" data-tab="deck">Your deck</button><button class="${tabNow==='tour'?'on':''}" data-tab="tour">Tournament</button><span style="margin-left:auto"></span>${V.phase==='build' ? `<button class="${me.ready?'on':'go'}" id="readyBtn">${me.ready?'Ready ✓ (click to keep building)':'My deck is ready'}</button>` : ''}</div>`;
   if(tabNow==='deck'){
     h+=`<div class="bar"><h3>${total} cards</h3><span class="hint">${deck.length} from your picks + ${lt} basic land${lt===1?'':'s'}${total<40?' · a draft deck needs at least 40':''}</span><span style="margin-left:auto"></span><button id="saveBtn">Save to my Modern Table decks</button><button id="copyBtn">Copy list</button></div>
       <div class="lands">${LANDS.map(([k,n])=>`<span class="land">${n}<button class="sm" data-land="${n}" data-d="-1" aria-label="Remove a ${n}">−</button><b>${B.lands[n]||0}</b><button class="sm" data-land="${n}" data-d="1" aria-label="Add a ${n}">+</button></span>`).join('')}<button id="sugBtn">Suggest lands</button></div>
-      <div class="pane" data-zone="deck"><div class="bar"><h3>Deck</h3><span class="hint">click a card to take it out</span></div>${regionsHTML(deck, lt) || '<p class="hint">Click cards in the sideboard below to put them in your deck.</p>'}</div>
-      <div class="pane" data-zone="side"><div class="bar"><h3>Sideboard</h3><span class="hint">${side.length} card${side.length===1?'':'s'} · click a card to add it to your deck</span></div>${regionsHTML(side, 0)}</div>`;
+      <div class="pane" data-zone="deck"><div class="bar"><h3>Deck</h3><span class="hint">click a card to take it out</span></div>${regionsHTML(deck, lt) || '<p class="hint">Everything is in the sideboard. Click cards below to put them back in your deck.</p>'}</div>
+      <div class="pane" data-zone="side"><div class="bar"><h3>Sideboard</h3><span class="hint">${side.length} card${side.length===1?'':'s'} · click a card to add it to your deck</span></div>${regionsHTML(side, 0) || '<p class="hint">Empty. Click a card in your deck to move it here.</p>'}</div>`;
   } else {
     if(!T){ const wait=V.seats.filter(s=>!s.bot && !s.ready).map(s=>s.name);
       h+=`<p class="hint" style="margin:0">${wait.length ? 'Still building: '+esc(wait.join(', '))+'.' : 'Everyone is ready.'}</p>${host ? `<div><button class="go" id="roundBtn">Start round 1</button></div>` : '<p class="hint" style="margin:0">The host starts round 1 when everyone is ready.</p>'}`;
@@ -562,17 +566,19 @@ function buildHTML(host, me){
 }
 
 /* ================= clicks ================= */
+function toggleSide(u){ loadBuild(); const i=B.side.indexOf(u); if(i>=0) B.side.splice(i,1); else B.side.push(u); saveBuild(); hideZoom(); render(); }
 $('#main').addEventListener('click', e=>{
   if(!V) return;
   const t=e.target, card=t.closest('.c'), id=t.closest('button') && t.closest('button').id;
   if(V.phase==='draft'){
     if(card && card.closest('#pack')){ const u=+card.dataset.u; if(sel===u && e.detail>1){ act({t:'pick', u}); sel=null; } else { sel=u; render(); } return; }
     if(id==='takeBtn' && sel!=null){ act({t:'pick', u:sel}); sel=null; return; }
+    if(card && card.closest('[data-zone]')) toggleSide(+card.dataset.u);
     return;
   }
   if(id==='startBtn'){ startDraft(); return; }
   const tb=t.closest('[data-tab]'); if(tb){ tabNow=tb.dataset.tab; render(); return; }
-  if(card && card.closest('[data-zone]')){ const u=+card.dataset.u, i=B.deck.indexOf(u); if(i>=0) B.deck.splice(i,1); else B.deck.push(u); saveBuild(); hideZoom(); render(); return; }
+  if(card && card.closest('[data-zone]')){ toggleSide(+card.dataset.u); return; }
   const lb=t.closest('[data-land]'); if(lb){ const n=lb.dataset.land; B.lands[n]=Math.max(0, (B.lands[n]||0)+(+lb.dataset.d)); saveBuild(); render(); return; }
   if(id==='sugBtn'){ suggestLands(); return; }
   if(id==='saveBtn'){ saveDeck(); return; }
