@@ -50,6 +50,8 @@ def main(path):
         uniq = len({i.replace(':foil', '') for i in ids})
         index.append({'code': b['set_code'], 'name': b['set_name'], 'size': out['size'], 'group': group})
         print(f"{b['set_code']:4} {b['set_name'][:30]:30} {out['size']} cards/pack  {len(boosters):3} layouts  {uniq} cards  {os.path.getsize(fn)//1024} KB")
+    try: index += [e for e in json.load(open('draft/sets/index.json', encoding='utf-8')) if e.get('group') == 'Cubes']   # cubes come from tools/make_cube.py
+    except FileNotFoundError: pass
     json.dump(index, open('draft/sets/index.json', 'w', encoding='utf-8'), separators=(',', ':'), ensure_ascii=False)
     print(f'{len(index)} sets written')
 

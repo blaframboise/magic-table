@@ -138,15 +138,15 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 <script src="../src/peerjs.min.js"></script>
 <script>
 "use strict";
-const VERSION = 'v0.7';
-const SETS = [{"code":"fra","name":"Reality Fracture","size":14,"group":"Recent"},{"code":"hob","name":"The Hobbit","size":14,"group":"Recent"},{"code":"msh","name":"Marvel Super Heroes","size":14,"group":"Recent"},{"code":"sos","name":"Secrets of Strixhaven","size":14,"group":"Recent"},{"code":"tmt","name":"Teenage Mutant Ninja Turtles","size":14,"group":"Recent"},{"code":"ecl","name":"Lorwyn Eclipsed","size":14,"group":"Recent"},{"code":"tla","name":"Avatar: The Last Airbender","size":14,"group":"Recent"},{"code":"spm","name":"Marvel's Spider-Man","size":14,"group":"Recent"},{"code":"eoe","name":"Edge of Eternities","size":14,"group":"Recent"},{"code":"fin","name":"Final Fantasy","size":14,"group":"Recent"},{"code":"tdm","name":"Tarkir: Dragonstorm","size":14,"group":"Favourites"},{"code":"fdn","name":"Foundations","size":14,"group":"Favourites"},{"code":"dsk","name":"Duskmourn: House of Horror","size":14,"group":"Favourites"},{"code":"blb","name":"Bloomburrow","size":14,"group":"Favourites"},{"code":"mh3","name":"Modern Horizons 3","size":14,"group":"Favourites"},{"code":"mom","name":"March of the Machine","size":15,"group":"Favourites"},{"code":"neo","name":"Kamigawa: Neon Dynasty","size":15,"group":"Favourites"},{"code":"mh2","name":"Modern Horizons 2","size":15,"group":"Favourites"},{"code":"eld","name":"Throne of Eldraine","size":15,"group":"Favourites"},{"code":"mh1","name":"Modern Horizons","size":15,"group":"Favourites"},{"code":"war","name":"War of the Spark","size":15,"group":"Favourites"},{"code":"dom","name":"Dominaria","size":15,"group":"Favourites"},{"code":"ktk","name":"Khans of Tarkir","size":15,"group":"Favourites"},{"code":"isd","name":"Innistrad","size":15,"group":"Favourites"},{"code":"roe","name":"Rise of the Eldrazi","size":15,"group":"Favourites"}];
+const VERSION = 'v0.8';
+const SETS = [{"code":"fra","name":"Reality Fracture","size":14,"group":"Recent"},{"code":"hob","name":"The Hobbit","size":14,"group":"Recent"},{"code":"msh","name":"Marvel Super Heroes","size":14,"group":"Recent"},{"code":"sos","name":"Secrets of Strixhaven","size":14,"group":"Recent"},{"code":"tmt","name":"Teenage Mutant Ninja Turtles","size":14,"group":"Recent"},{"code":"ecl","name":"Lorwyn Eclipsed","size":14,"group":"Recent"},{"code":"tla","name":"Avatar: The Last Airbender","size":14,"group":"Recent"},{"code":"spm","name":"Marvel's Spider-Man","size":14,"group":"Recent"},{"code":"eoe","name":"Edge of Eternities","size":14,"group":"Recent"},{"code":"fin","name":"Final Fantasy","size":14,"group":"Recent"},{"code":"tdm","name":"Tarkir: Dragonstorm","size":14,"group":"Favourites"},{"code":"fdn","name":"Foundations","size":14,"group":"Favourites"},{"code":"dsk","name":"Duskmourn: House of Horror","size":14,"group":"Favourites"},{"code":"blb","name":"Bloomburrow","size":14,"group":"Favourites"},{"code":"mh3","name":"Modern Horizons 3","size":14,"group":"Favourites"},{"code":"mom","name":"March of the Machine","size":15,"group":"Favourites"},{"code":"neo","name":"Kamigawa: Neon Dynasty","size":15,"group":"Favourites"},{"code":"mh2","name":"Modern Horizons 2","size":15,"group":"Favourites"},{"code":"eld","name":"Throne of Eldraine","size":15,"group":"Favourites"},{"code":"mh1","name":"Modern Horizons","size":15,"group":"Favourites"},{"code":"war","name":"War of the Spark","size":15,"group":"Favourites"},{"code":"dom","name":"Dominaria","size":15,"group":"Favourites"},{"code":"ktk","name":"Khans of Tarkir","size":15,"group":"Favourites"},{"code":"isd","name":"Innistrad","size":15,"group":"Favourites"},{"code":"roe","name":"Rise of the Eldrazi","size":15,"group":"Favourites"},{"code":"df07","name":"DF07's Legacy Cube","size":15,"group":"Cubes"}];
 const PREFIX = 'draft-table-v1-';
 const $ = (s, el=document) => el.querySelector(s), $$ = (s, el=document) => [...el.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const store = { get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } }, set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }, del(k){ try{ localStorage.removeItem(k); }catch(e){} } };
 function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
-function toast(t){ const el=$('#toast'); el.textContent=t; el.style.opacity=1; clearTimeout(toast.t); toast.t=setTimeout(()=>el.style.opacity=0, 2600); }
+function toast(t, ms=2600){ const el=$('#toast'); el.textContent=t; el.style.opacity=1; clearTimeout(toast.t); toast.t=setTimeout(()=>el.style.opacity=0, ms); }
 function setHTML(el, h){ if(el._h!==h){ el._h=h; el.innerHTML=h; } }
 const randCode = () => { const A='ABCDEFGHJKLMNPQRSTUVWXYZ'; let c=''; for(let i=0;i<6;i++) c+=A[Math.floor(Math.random()*A.length)]; return c; };
 const SETTINGS = store.get('mt_settings', {});            // shared with the Modern Table, so your name carries over
@@ -165,6 +165,16 @@ function toCard(c){
     img:im.normal||'', back:(!c.image_uris && f && f[1] && f[1].image_uris) ? f[1].image_uris.normal : '',
     sid:c.id, r:c.rarity||'', c:(c.colors || (f && f[0].colors) || []).join(''), cmc:c.cmc||0 };
 }
+/* Cube cards are listed by name ("n|Force of Will"). Scryfall answers with the full name, so two-faced and split cards are matched on either face. */
+const nameKey = n => String(n).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s*\/\/?\s*/g,' // ').trim();
+async function ensureNames(chunk){
+  try{
+    const r=await fetch('https://api.scryfall.com/cards/collection', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ identifiers:chunk.map(x=>({name:x.slice(2)})) }) });
+    if(!r.ok) throw new Error(r.status);
+    const j=await r.json(), want=new Map(chunk.map(x=>[nameKey(x.slice(2)), x]));
+    for(const c of j.data||[]){ const keys=[c.name, ...(c.card_faces||[]).map(f=>f.name), (c.name||'').split(' // ')[0]].map(nameKey); for(const k of keys){ const x=want.get(k); if(x && !CARDS[x]){ CARDS[x]=toCard(c); break; } } }
+  }catch(e){ console.warn('Scryfall lookup failed', e); }
+}
 async function ensure(ids, onProgress){
   const now=Date.now(), want=[...new Set(ids)].filter(i => !CARDS[i] && !pendingIds.has(i) && !(missed[i] > now-30000));
   if(!want.length) return;
@@ -172,6 +182,7 @@ async function ensure(ids, onProgress){
   let done=0;
   for(let i=0;i<want.length;i+=75){
     const chunk=want.slice(i,i+75);
+    if(chunk[0].startsWith('n|')){ await ensureNames(chunk); for(const x of chunk){ pendingIds.delete(x); if(!CARDS[x]) missed[x]=Date.now(); } done+=chunk.length; onProgress && onProgress(done, want.length); if(i+75<want.length) await sleep(110); continue; }
     /* The odds data numbers two-faced, adventure and split cards "151a"; Scryfall calls the same card "151". Ask for the plain number first, then the number as written. */
     for(const strip of [true, false]){
       const ask={}; for(const x of chunk){ if(CARDS[x]) continue; const p=x.split(':'), n=strip ? p[1].replace(/^(\d+)a$/, '$1') : p[1]; if(!strip && n===p[1].replace(/^(\d+)a$/, '$1')) continue; ask[p[0]+':'+n]=x; }
@@ -191,7 +202,7 @@ async function ensure(ids, onProgress){
   store.set('dt_cards', {set:cardSet, cards:CARDS});
 }
 let SET = null;
-async function loadSet(code){ if(SET && SET.code===code) return SET; const r=await fetch('sets/'+code+'.json'); if(!r.ok) throw new Error('set file '+r.status); SET=await r.json(); return SET; }
+async function loadSet(code){ if(SET && SET.code===code) return SET; const r=await fetch('sets/'+code+'.json'); if(!r.ok) throw new Error('set file '+r.status); SET=await r.json(); if(SET.cube) SET.ids=SET.names.map(n=>'n|'+n); return SET; }
 const baseId = id => id.replace(/:(foil|etched)$/,'');
 const allIds = set => [...new Set(set.ids.map(baseId))];
 
@@ -232,7 +243,7 @@ function mainColors(pool){
 }
 function rate(c, cols){
   const d=CARDS[c.id]; if(!d) return Math.random();
-  let s=({mythic:4.3, rare:3.9, uncommon:2.6, common:1.9})[d.r] || 3;
+  let s=(SET && SET.cube) ? 3 : ({mythic:4.3, rare:3.9, uncommon:2.6, common:1.9})[d.r] || 3;   // rarity means nothing in a cube
   if(isLandCard(d)) s = /\bBasic\b/.test(d.t) ? .1 : 1.2;
   else {
     if(/Creature/.test(d.t)) s+=.25;
@@ -292,10 +303,13 @@ async function startDraft(){
   try{ set=await loadSet(H.set); }catch(e){ H.busy=''; sync(); toast('Could not load that set. Check your connection and try again.'); return; }
   useCache(H.set);
   await ensure(allIds(set), (a,t)=>{ H.busy=`Loading cards ${a}/${t}…`; sync(); });
+  if(set.cube){ const miss=set.ids.filter(i=>!CARDS[i]); if(miss.length){ const nm=miss.map(x=>x.slice(2)); console.warn('Cube cards not found on Scryfall:', nm); setTimeout(()=>toast(`${nm.length} cube card${nm.length>1?'s were':' was'} not found on Scryfall and left out: ${nm.slice(0,8).join(', ')}${nm.length>8?'…':''}`, 12000), 400); } if(set.ids.length-miss.length < set.size*3){ H.busy=''; sync(); toast('Could not load the cube cards. Check your connection and try again.'); return; } }
   while(H.seats.length<H.pod) H.seats.push({pid:'bot'+H.seats.length, name:BOTS[H.seats.length%BOTS.length], bot:1, pool:[], queue:[]});
   shuffle(H.seats);
   H.uid=0; H.size=set.size; H.gen=(H.gen||0)+1;
-  H.packs=[0,1,2].map(()=>H.seats.map(()=>genPack(set, ()=>++H.uid)));
+  if(set.cube){ let pile=[]; const deal=()=>{ const out=[]; while(out.length<set.size){ if(!pile.length) pile=shuffle(set.ids.filter(id=>CARDS[id])); if(!pile.length) break; out.push({u:++H.uid, id:pile.pop(), f:0}); } return out; };
+    H.packs=[0,1,2].map(()=>H.seats.map(deal)); }
+  else H.packs=[0,1,2].map(()=>H.seats.map(()=>genPack(set, ()=>++H.uid)));
   H.seats.forEach(s=>{ s.pool=[]; s.queue=[]; s.ready=false; });
   H.phase='draft'; H.round=0; H.busy=''; H.tour=null;
   nextRound(); pump(); sync();
