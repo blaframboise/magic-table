@@ -485,7 +485,7 @@ function render(){
 }
 /* ---------- after the draft: deck building and the tournament ---------- */
 function loadBuild(){ const key=V.code+':'+V.gen; if(B && B.code===key) return; B=store.get('dt_build', null); if(!B || B.code!==key) B={code:key, side:[], lands:{Plains:0,Island:0,Swamp:0,Mountain:0,Forest:0}};
-  if(!B.side){ B.side=(V.pool||[]).filter(c=>!(B.deck||[]).includes(c.u)).map(c=>c.u); delete B.deck; } }   // builds saved before v0.7 listed the deck instead
+  if(!B.side){ const d=B.deck||[]; B.side=d.length ? (V.pool||[]).filter(c=>!d.includes(c.u)).map(c=>c.u) : []; delete B.deck; } }   // builds saved before v0.7 listed the deck instead
 const inMain = c => !B.side.includes(c.u);
 const saveBuild = () => store.set('dt_build', B);
 const landTotal = () => LANDS.reduce((a,[,n])=>a+(B.lands[n]||0), 0);
